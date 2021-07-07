@@ -1,0 +1,5 @@
+version: "2"
+services:
+  app:
+    image: consul-ecs:test
+    command: discover-servers --service-name consul-ecs-dev-server --out output.txt

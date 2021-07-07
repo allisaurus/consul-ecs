@@ -1,0 +1,3 @@
+FROM hashicorp/consul:1.9.5
+COPY consul-ecs /bin/consul-ecs
+ENTRYPOINT ["/bin/consul-ecs"]

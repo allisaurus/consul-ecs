@@ -1,0 +1,50 @@
+version: "2"
+networks:
+    # This special network is configured so that the local metadata
+    # service can bind to the specific IP address that ECS uses
+    # in production
+    credentials_network:
+        driver: bridge
+        ipam:
+            config:
+                - subnet: "169.254.170.0/24"
+                  gateway: 169.254.170.1
+services:
+    # This container vends credentials to your containers
+    ecs-local-endpoints:
+        # The Amazon ECS Local Container Endpoints Docker Image
+        image: amazon/amazon-ecs-local-container-endpoints
+        volumes:
+          # Mount /var/run so we can access docker.sock and talk to Docker
+          - /var/run:/var/run
+          # Mount the shared configuration directory, used by the AWS CLI and AWS SDKs
+          - $HOME/.aws/:/home/.aws/
+        environment:
+          # define the home folder; credentials will be read from $HOME/.aws
+          HOME: "/home"
+          # You can change which AWS CLI Profile is used
+          AWS_PROFILE: "default"
+          # override metadata response.
+          # see: https://github.com/awslabs/amazon-ecs-local-container-endpoints/blob/mainline/local-container-endpoints/config/config.go#L22
+          #CLUSTER_ARN: "consul-ecs"
+          #TASK_ARN: some_custom_task
+          #TASK_DEFINITION_FAMILY: some_custom_family
+
+        networks:
+            credentials_network:
+                # This special IP address is recognized by the AWS SDKs and AWS CLI 
+                ipv4_address: "169.254.170.2"
+                
+    # The application container under test. To test multiple containers at a time,
+    # duplicate this section for each and give them a unique IP in 'credentials_network'
+    app:
+        depends_on:
+            - ecs-local-endpoints
+        networks:
+            credentials_network:
+                ipv4_address: "169.254.170.3"
+        environment:
+          AWS_REGION: "us-east-2"
+          AWS_DEFAULT_REGION: "us-east-2"
+          AWS_CONTAINER_CREDENTIALS_RELATIVE_URI: "/creds"
+          ECS_CONTAINER_METADATA_URI_V4: "http://169.254.170.2/v3"
